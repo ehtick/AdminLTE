@@ -446,6 +446,12 @@
                 </ul>
               </li>
               <li class="nav-item">
+                <a href="../starter.html" class="nav-link">
+                  <i class="nav-icon bi bi-file-earmark"></i>
+                  <p>Starter Page</p>
+                </a>
+              </li>
+              <li class="nav-item">
                 <a href="../generate/theme.html" class="nav-link">
                   <i class="nav-icon bi bi-palette"></i>
                   <p>Theme Generate</p>
@@ -675,6 +681,23 @@
                   </li>
                 </ul>
               </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link">
+                  <i class="nav-icon bi bi-graph-up"></i>
+                  <p>
+                    Charts
+                    <i class="nav-arrow bi bi-chevron-right"></i>
+                  </p>
+                </a>
+                <ul class="nav nav-treeview">
+                  <li class="nav-item">
+                    <a href="../charts/apexcharts.html" class="nav-link">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>ApexCharts</p>
+                    </a>
+                  </li>
+                </ul>
+              </li>
 
               <li class="nav-header">PAGES</li>
               <li class="nav-item">
@@ -776,6 +799,12 @@
                     </ul>
                   </li>
                 </ul>
+              </li>
+              <li class="nav-item">
+                <a href="../users.html" class="nav-link">
+                  <i class="nav-icon bi bi-people"></i>
+                  <p>Users</p>
+                </a>
               </li>
 
               <li class="nav-header">EXAMPLES</li>
@@ -1165,70 +1194,10 @@
     </script>
     <!--end::OverlayScrollbars Configure-->
 
-    <!--begin::Color Mode Toggle (#6010)-->
-    <script>
-      (() => {
-        'use strict';
-
-        const STORAGE_KEY = 'lte-theme';
-
-        const getStoredTheme = () => localStorage.getItem(STORAGE_KEY);
-        const setStoredTheme = (theme) => localStorage.setItem(STORAGE_KEY, theme);
-
-        const prefersDark = () => globalThis.matchMedia('(prefers-color-scheme: dark)').matches;
-
-        const getPreferredTheme = () => {
-          const stored = getStoredTheme();
-          if (stored) return stored;
-          return prefersDark() ? 'dark' : 'light';
-        };
-
-        const setTheme = (theme) => {
-          const resolved = theme === 'auto' ? (prefersDark() ? 'dark' : 'light') : theme;
-          document.documentElement.setAttribute('data-bs-theme', resolved);
-        };
-
-        setTheme(getPreferredTheme());
-
-        const showActiveTheme = (theme) => {
-          // Highlight the active dropdown option
-          document.querySelectorAll('[data-bs-theme-value]').forEach((el) => {
-            el.classList.remove('active');
-            el.setAttribute('aria-pressed', 'false');
-            const check = el.querySelector('.bi-check-lg');
-            if (check) check.classList.add('d-none');
-          });
-          const active = document.querySelector(`[data-bs-theme-value="${theme}"]`);
-          if (active) {
-            active.classList.add('active');
-            active.setAttribute('aria-pressed', 'true');
-            const check = active.querySelector('.bi-check-lg');
-            if (check) check.classList.remove('d-none');
-          }
-          // Sync the topbar trigger icon
-          document.querySelectorAll('[data-lte-theme-icon]').forEach((icon) => {
-            icon.classList.toggle('d-none', icon.dataset.lteThemeIcon !== theme);
-          });
-        };
-
-        globalThis.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-          const stored = getStoredTheme();
-          if (!stored || stored === 'auto') setTheme(getPreferredTheme());
-        });
-
-        document.addEventListener('DOMContentLoaded', () => {
-          showActiveTheme(getPreferredTheme());
-          document.querySelectorAll('[data-bs-theme-value]').forEach((toggle) => {
-            toggle.addEventListener('click', () => {
-              const theme = toggle.getAttribute('data-bs-theme-value');
-              setStoredTheme(theme);
-              setTheme(theme);
-              showActiveTheme(theme);
-            });
-          });
-        });
-      })();
-    </script>
+    <!--begin::Color Mode Toggle-->
+    <!-- The light/dark/auto switcher ships in adminlte.js as the ColorMode
+     module (since 4.1) — no page script needed. Only the no-flash snippet
+     in <head> stays inline, because it must run before first paint. -->
     <!--end::Color Mode Toggle-->
     <!--end::Script-->
   </body>

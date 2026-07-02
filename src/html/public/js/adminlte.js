@@ -1,5 +1,5 @@
 /*!
- * AdminLTE v4.0.4 (https://adminlte.io)
+ * AdminLTE v4.1.0 (https://adminlte.io)
  * Copyright 2014-2026 Colorlib <https://colorlib.com>
  * Licensed under MIT (https://github.com/ColorlibHQ/AdminLTE/blob/master/LICENSE)
  */
@@ -144,13 +144,55 @@
         }, 400);
     });
 
-    const DATA_KEY$4 = 'lte.card-widget';
-    const EVENT_KEY$4 = `.${DATA_KEY$4}`;
-    const EVENT_COLLAPSED$2 = `collapsed${EVENT_KEY$4}`;
-    const EVENT_EXPANDED$2 = `expanded${EVENT_KEY$4}`;
-    const EVENT_REMOVE = `remove${EVENT_KEY$4}`;
-    const EVENT_MAXIMIZED$1 = `maximized${EVENT_KEY$4}`;
-    const EVENT_MINIMIZED$1 = `minimized${EVENT_KEY$4}`;
+    const componentRegistry = new WeakMap();
+    class BaseComponent {
+        static get NAME() {
+            throw new Error('Component subclasses must override the static NAME getter.');
+        }
+        static get DATA_KEY() {
+            return `lte.${this.NAME}`;
+        }
+        static _getInstance(element) {
+            if (!element) {
+                return null;
+            }
+            return componentRegistry.get(element)?.get(this.DATA_KEY) ?? null;
+        }
+        _element;
+        constructor(element) {
+            this._element = element;
+            const instances = componentRegistry.get(element) ?? new Map();
+            componentRegistry.set(element, instances);
+            instances.set(this.constructor.DATA_KEY, this);
+        }
+        dispose() {
+            const instances = componentRegistry.get(this._element);
+            instances?.delete(this.constructor.DATA_KEY);
+            if (instances?.size === 0) {
+                componentRegistry.delete(this._element);
+            }
+        }
+    }
+    const dispatchCustomEvent = (element, name, options = {}) => {
+        const event = new CustomEvent(name, {
+            bubbles: true,
+            cancelable: options.cancelable ?? false,
+            detail: options.detail
+        });
+        element.dispatchEvent(event);
+        return event;
+    };
+
+    const NAME$4 = 'card-widget';
+    const EVENT_KEY$5 = `.lte.${NAME$4}`;
+    const EVENT_COLLAPSE$2 = `collapse${EVENT_KEY$5}`;
+    const EVENT_EXPAND$1 = `expand${EVENT_KEY$5}`;
+    const EVENT_REMOVE = `remove${EVENT_KEY$5}`;
+    const EVENT_COLLAPSED$3 = `collapsed${EVENT_KEY$5}`;
+    const EVENT_EXPANDED$2 = `expanded${EVENT_KEY$5}`;
+    const EVENT_REMOVED = `removed${EVENT_KEY$5}`;
+    const EVENT_MAXIMIZED$1 = `maximized${EVENT_KEY$5}`;
+    const EVENT_MINIMIZED$1 = `minimized${EVENT_KEY$5}`;
     const CLASS_NAME_CARD = 'card';
     const CLASS_NAME_COLLAPSED = 'collapsed-card';
     const CLASS_NAME_COLLAPSING = 'collapsing-card';
@@ -169,13 +211,20 @@
         removeTrigger: SELECTOR_DATA_REMOVE,
         maximizeTrigger: SELECTOR_DATA_MAXIMIZE
     };
-    class CardWidget {
-        _element;
+    class CardWidget extends BaseComponent {
+        static get NAME() {
+            return NAME$4;
+        }
+        static getInstance(element) {
+            return this._getInstance(element);
+        }
+        static getOrCreateInstance(element, config = {}) {
+            return this.getInstance(element) ?? new this(element, config);
+        }
         _parent;
-        _clone;
         _config;
-        constructor(element, config) {
-            this._element = element;
+        constructor(element, config = {}) {
+            super(element);
             this._parent = element.closest(SELECTOR_CARD);
             if (element.classList.contains(CLASS_NAME_CARD)) {
                 this._parent = element;
@@ -183,54 +232,64 @@
             this._config = { ...Default$1, ...config };
         }
         collapse() {
-            const event = new Event(EVENT_COLLAPSED$2);
-            if (this._parent) {
-                this._parent.classList.add(CLASS_NAME_COLLAPSING);
-                this._parent.classList.remove(CLASS_NAME_EXPANDING);
-                const elm = this._parent?.querySelectorAll(`:scope > ${SELECTOR_CARD_BODY}, :scope > ${SELECTOR_CARD_FOOTER}`);
-                elm.forEach(el => {
-                    if (el instanceof HTMLElement) {
-                        slideUp(el, this._config.animationSpeed);
-                    }
-                });
-                setTimeout(() => {
-                    if (this._parent?.classList.contains(CLASS_NAME_COLLAPSING)) {
-                        this._parent.classList.add(CLASS_NAME_COLLAPSED);
-                        this._parent.classList.remove(CLASS_NAME_COLLAPSING);
-                    }
-                }, this._config.animationSpeed);
+            if (!this._parent) {
+                return;
             }
-            this._element?.dispatchEvent(event);
+            if (dispatchCustomEvent(this._parent, EVENT_COLLAPSE$2, { cancelable: true }).defaultPrevented) {
+                return;
+            }
+            this._parent.classList.add(CLASS_NAME_COLLAPSING);
+            this._parent.classList.remove(CLASS_NAME_EXPANDING);
+            const elm = this._parent.querySelectorAll(`:scope > ${SELECTOR_CARD_BODY}, :scope > ${SELECTOR_CARD_FOOTER}`);
+            elm.forEach(el => {
+                if (el instanceof HTMLElement) {
+                    slideUp(el, this._config.animationSpeed);
+                }
+            });
+            setTimeout(() => {
+                if (this._parent?.classList.contains(CLASS_NAME_COLLAPSING)) {
+                    this._parent.classList.add(CLASS_NAME_COLLAPSED);
+                    this._parent.classList.remove(CLASS_NAME_COLLAPSING);
+                    dispatchCustomEvent(this._parent, EVENT_COLLAPSED$3);
+                }
+            }, this._config.animationSpeed);
         }
         expand() {
-            const event = new Event(EVENT_EXPANDED$2);
-            if (this._parent) {
-                this._parent.classList.add(CLASS_NAME_EXPANDING);
-                this._parent.classList.remove(CLASS_NAME_COLLAPSING, CLASS_NAME_COLLAPSED);
-                const elm = this._parent?.querySelectorAll(`:scope > ${SELECTOR_CARD_BODY}, :scope > ${SELECTOR_CARD_FOOTER}`);
-                elm.forEach(el => {
-                    if (el instanceof HTMLElement) {
-                        slideDown(el, this._config.animationSpeed);
-                    }
-                });
-                setTimeout(() => {
-                    if (this._parent?.classList.contains(CLASS_NAME_EXPANDING)) {
-                        this._parent.classList.remove(CLASS_NAME_EXPANDING);
-                    }
-                }, this._config.animationSpeed);
+            if (!this._parent) {
+                return;
             }
-            this._element?.dispatchEvent(event);
+            if (dispatchCustomEvent(this._parent, EVENT_EXPAND$1, { cancelable: true }).defaultPrevented) {
+                return;
+            }
+            this._parent.classList.add(CLASS_NAME_EXPANDING);
+            this._parent.classList.remove(CLASS_NAME_COLLAPSING, CLASS_NAME_COLLAPSED);
+            const elm = this._parent.querySelectorAll(`:scope > ${SELECTOR_CARD_BODY}, :scope > ${SELECTOR_CARD_FOOTER}`);
+            elm.forEach(el => {
+                if (el instanceof HTMLElement) {
+                    slideDown(el, this._config.animationSpeed);
+                }
+            });
+            setTimeout(() => {
+                if (this._parent?.classList.contains(CLASS_NAME_EXPANDING)) {
+                    this._parent.classList.remove(CLASS_NAME_EXPANDING);
+                    dispatchCustomEvent(this._parent, EVENT_EXPANDED$2);
+                }
+            }, this._config.animationSpeed);
         }
         remove() {
-            const event = new Event(EVENT_REMOVE);
-            if (this._parent) {
-                const parent = this._parent;
-                slideUp(parent, this._config.animationSpeed);
-                setTimeout(() => {
-                    parent.remove();
-                }, this._config.animationSpeed);
+            if (!this._parent) {
+                return;
             }
-            this._element?.dispatchEvent(event);
+            if (dispatchCustomEvent(this._parent, EVENT_REMOVE, { cancelable: true }).defaultPrevented) {
+                return;
+            }
+            const parent = this._parent;
+            slideUp(parent, this._config.animationSpeed);
+            setTimeout(() => {
+                dispatchCustomEvent(parent, EVENT_REMOVED);
+                parent.remove();
+                this.dispose();
+            }, this._config.animationSpeed);
         }
         toggle() {
             if (this._parent?.classList.contains(CLASS_NAME_COLLAPSED) || this._parent?.classList.contains(CLASS_NAME_COLLAPSING)) {
@@ -240,7 +299,6 @@
             this.collapse();
         }
         maximize() {
-            const event = new Event(EVENT_MAXIMIZED$1);
             if (this._parent) {
                 this._parent.style.height = `${this._parent.offsetHeight}px`;
                 this._parent.style.width = `${this._parent.offsetWidth}px`;
@@ -255,13 +313,12 @@
                         if (this._parent.classList.contains(CLASS_NAME_COLLAPSED)) {
                             this._parent.classList.add(CLASS_NAME_WAS_COLLAPSED);
                         }
+                        dispatchCustomEvent(this._parent, EVENT_MAXIMIZED$1);
                     }
                 }, 150);
             }
-            this._element?.dispatchEvent(event);
         }
         minimize() {
-            const event = new Event(EVENT_MINIMIZED$1);
             if (this._parent) {
                 this._parent.style.height = 'auto';
                 this._parent.style.width = 'auto';
@@ -276,6 +333,7 @@
                         if (this._parent?.classList.contains(CLASS_NAME_WAS_COLLAPSED)) {
                             this._parent.classList.remove(CLASS_NAME_WAS_COLLAPSED);
                         }
+                        dispatchCustomEvent(this._parent, EVENT_MINIMIZED$1);
                         setTimeout(() => {
                             this._parent?.style.removeProperty('height');
                             this._parent?.style.removeProperty('width');
@@ -284,7 +342,6 @@
                     }
                 }, 10);
             }
-            this._element?.dispatchEvent(event);
         }
         toggleMaximize() {
             if (this._parent?.classList.contains(CLASS_NAME_MAXIMIZED)) {
@@ -294,41 +351,42 @@
             this.maximize();
         }
     }
-    onDOMContentLoaded(() => {
-        const collapseBtn = document.querySelectorAll(SELECTOR_DATA_COLLAPSE);
-        collapseBtn.forEach(btn => {
-            btn.addEventListener('click', event => {
-                event.preventDefault();
-                const target = event.currentTarget;
-                const data = new CardWidget(target, Default$1);
-                data.toggle();
-            });
-        });
-        const removeBtn = document.querySelectorAll(SELECTOR_DATA_REMOVE);
-        removeBtn.forEach(btn => {
-            btn.addEventListener('click', event => {
-                event.preventDefault();
-                const target = event.currentTarget;
-                const data = new CardWidget(target, Default$1);
-                data.remove();
-            });
-        });
-        const maxBtn = document.querySelectorAll(SELECTOR_DATA_MAXIMIZE);
-        maxBtn.forEach(btn => {
-            btn.addEventListener('click', event => {
-                event.preventDefault();
-                const target = event.currentTarget;
-                const data = new CardWidget(target, Default$1);
-                data.toggleMaximize();
-            });
-        });
+    document.addEventListener('click', event => {
+        const target = event.target;
+        if (!(target instanceof Element)) {
+            return;
+        }
+        const collapseTrigger = target.closest(SELECTOR_DATA_COLLAPSE);
+        const removeTrigger = target.closest(SELECTOR_DATA_REMOVE);
+        const maximizeTrigger = target.closest(SELECTOR_DATA_MAXIMIZE);
+        const trigger = collapseTrigger ?? removeTrigger ?? maximizeTrigger;
+        if (!trigger) {
+            return;
+        }
+        event.preventDefault();
+        const card = trigger.closest(SELECTOR_CARD);
+        if (!card) {
+            return;
+        }
+        const widget = CardWidget.getOrCreateInstance(card);
+        if (collapseTrigger) {
+            widget.toggle();
+        }
+        else if (removeTrigger) {
+            widget.remove();
+        }
+        else {
+            widget.toggleMaximize();
+        }
     });
 
-    const DATA_KEY$3 = 'lte.treeview';
-    const EVENT_KEY$3 = `.${DATA_KEY$3}`;
-    const EVENT_EXPANDED$1 = `expanded${EVENT_KEY$3}`;
-    const EVENT_COLLAPSED$1 = `collapsed${EVENT_KEY$3}`;
-    const EVENT_LOAD_DATA_API = `load${EVENT_KEY$3}`;
+    const NAME$3 = 'treeview';
+    const EVENT_KEY$4 = `.lte.${NAME$3}`;
+    const EVENT_EXPAND = `expand${EVENT_KEY$4}`;
+    const EVENT_COLLAPSE$1 = `collapse${EVENT_KEY$4}`;
+    const EVENT_EXPANDED$1 = `expanded${EVENT_KEY$4}`;
+    const EVENT_COLLAPSED$2 = `collapsed${EVENT_KEY$4}`;
+    const EVENT_LOAD_DATA_API = `load${EVENT_KEY$4}`;
     const CLASS_NAME_MENU_OPEN = 'menu-open';
     const SELECTOR_NAV_ITEM = '.nav-item';
     const SELECTOR_NAV_LINK = '.nav-link';
@@ -342,15 +400,25 @@
         const link = navItem.querySelector(`:scope > ${SELECTOR_NAV_LINK}`);
         link?.setAttribute('aria-expanded', String(expanded));
     };
-    class Treeview {
-        _element;
+    class Treeview extends BaseComponent {
+        static get NAME() {
+            return NAME$3;
+        }
+        static getInstance(element) {
+            return this._getInstance(element);
+        }
+        static getOrCreateInstance(element, config = {}) {
+            return this.getInstance(element) ?? new this(element, config);
+        }
         _config;
-        constructor(element, config) {
-            this._element = element;
+        constructor(element, config = {}) {
+            super(element);
             this._config = { ...Default, ...config };
         }
         open() {
-            const event = new Event(EVENT_EXPANDED$1);
+            if (dispatchCustomEvent(this._element, EVENT_EXPAND, { cancelable: true }).defaultPrevented) {
+                return;
+            }
             if (this._config.accordion) {
                 const openMenuList = this._element.parentElement?.querySelectorAll(`${SELECTOR_NAV_ITEM}.${CLASS_NAME_MENU_OPEN}`);
                 openMenuList?.forEach(openMenu => {
@@ -366,21 +434,31 @@
             }
             this._element.classList.add(CLASS_NAME_MENU_OPEN);
             setAriaExpanded(this._element, true);
-            const childElement = this._element?.querySelector(SELECTOR_TREEVIEW_MENU);
+            const childElement = this._element.querySelector(SELECTOR_TREEVIEW_MENU);
             if (childElement) {
                 slideDown(childElement, this._config.animationSpeed);
             }
-            this._element.dispatchEvent(event);
+            setTimeout(() => {
+                if (this._element.classList.contains(CLASS_NAME_MENU_OPEN)) {
+                    dispatchCustomEvent(this._element, EVENT_EXPANDED$1);
+                }
+            }, this._config.animationSpeed);
         }
         close() {
-            const event = new Event(EVENT_COLLAPSED$1);
+            if (dispatchCustomEvent(this._element, EVENT_COLLAPSE$1, { cancelable: true }).defaultPrevented) {
+                return;
+            }
             this._element.classList.remove(CLASS_NAME_MENU_OPEN);
             setAriaExpanded(this._element, false);
-            const childElement = this._element?.querySelector(SELECTOR_TREEVIEW_MENU);
+            const childElement = this._element.querySelector(SELECTOR_TREEVIEW_MENU);
             if (childElement) {
                 slideUp(childElement, this._config.animationSpeed);
             }
-            this._element.dispatchEvent(event);
+            setTimeout(() => {
+                if (!this._element.classList.contains(CLASS_NAME_MENU_OPEN)) {
+                    dispatchCustomEvent(this._element, EVENT_COLLAPSED$2);
+                }
+            }, this._config.animationSpeed);
         }
         toggle() {
             if (this._element.classList.contains(CLASS_NAME_MENU_OPEN)) {
@@ -391,6 +469,31 @@
             }
         }
     }
+    document.addEventListener('click', event => {
+        const target = event.target;
+        if (!(target instanceof Element)) {
+            return;
+        }
+        const toggleRoot = target.closest(SELECTOR_DATA_TOGGLE$1);
+        if (!toggleRoot) {
+            return;
+        }
+        const targetItem = target.closest(SELECTOR_NAV_ITEM);
+        const targetLink = target.closest(SELECTOR_NAV_LINK);
+        if (!targetItem?.querySelector(SELECTOR_TREEVIEW_MENU)) {
+            return;
+        }
+        if (target.getAttribute('href') === '#' || targetLink?.getAttribute('href') === '#') {
+            event.preventDefault();
+        }
+        const accordionAttr = toggleRoot.dataset.accordion;
+        const animationSpeedAttr = toggleRoot.dataset.animationSpeed;
+        const config = {
+            accordion: accordionAttr === undefined ? Default.accordion : accordionAttr === 'true',
+            animationSpeed: animationSpeedAttr === undefined ? Default.animationSpeed : Number(animationSpeedAttr)
+        };
+        Treeview.getOrCreateInstance(targetItem, config).toggle();
+    });
     onDOMContentLoaded(() => {
         const openMenuItems = document.querySelectorAll(`${SELECTOR_NAV_ITEM}.${CLASS_NAME_MENU_OPEN}`);
         openMenuItems.forEach(menuItem => {
@@ -408,78 +511,56 @@
                 }
             });
         });
-        const button = document.querySelectorAll(SELECTOR_DATA_TOGGLE$1);
-        button.forEach(btn => {
-            btn.addEventListener('click', event => {
-                const target = event.target;
-                const targetItem = target.closest(SELECTOR_NAV_ITEM);
-                const targetLink = target.closest(SELECTOR_NAV_LINK);
-                const targetTreeviewMenu = targetItem?.querySelector(SELECTOR_TREEVIEW_MENU);
-                const lteToggleElement = event.currentTarget;
-                if (!targetTreeviewMenu) {
-                    return;
-                }
-                if (target?.getAttribute('href') === '#' || targetLink?.getAttribute('href') === '#') {
-                    event.preventDefault();
-                }
-                if (targetItem) {
-                    const accordionAttr = lteToggleElement.dataset.accordion;
-                    const animationSpeedAttr = lteToggleElement.dataset.animationSpeed;
-                    const config = {
-                        accordion: accordionAttr === undefined ? Default.accordion : accordionAttr === 'true',
-                        animationSpeed: animationSpeedAttr === undefined ? Default.animationSpeed : Number(animationSpeedAttr)
-                    };
-                    const data = new Treeview(targetItem, config);
-                    data.toggle();
-                }
-            });
-        });
     });
 
-    const DATA_KEY$2 = 'lte.direct-chat';
-    const EVENT_KEY$2 = `.${DATA_KEY$2}`;
-    const EVENT_EXPANDED = `expanded${EVENT_KEY$2}`;
-    const EVENT_COLLAPSED = `collapsed${EVENT_KEY$2}`;
+    const NAME$2 = 'direct-chat';
+    const EVENT_KEY$3 = `.lte.${NAME$2}`;
+    const EVENT_EXPANDED = `expanded${EVENT_KEY$3}`;
+    const EVENT_COLLAPSED$1 = `collapsed${EVENT_KEY$3}`;
     const SELECTOR_DATA_TOGGLE = '[data-lte-toggle="chat-pane"]';
     const SELECTOR_DIRECT_CHAT = '.direct-chat';
     const CLASS_NAME_DIRECT_CHAT_OPEN = 'direct-chat-contacts-open';
-    class DirectChat {
-        _element;
-        constructor(element) {
-            this._element = element;
+    class DirectChat extends BaseComponent {
+        static get NAME() {
+            return NAME$2;
+        }
+        static getInstance(element) {
+            return this._getInstance(element);
+        }
+        static getOrCreateInstance(element) {
+            return this.getInstance(element) ?? new this(element);
         }
         toggle() {
             if (this._element.classList.contains(CLASS_NAME_DIRECT_CHAT_OPEN)) {
-                const event = new Event(EVENT_COLLAPSED);
                 this._element.classList.remove(CLASS_NAME_DIRECT_CHAT_OPEN);
-                this._element.dispatchEvent(event);
+                dispatchCustomEvent(this._element, EVENT_COLLAPSED$1);
             }
             else {
-                const event = new Event(EVENT_EXPANDED);
                 this._element.classList.add(CLASS_NAME_DIRECT_CHAT_OPEN);
-                this._element.dispatchEvent(event);
+                dispatchCustomEvent(this._element, EVENT_EXPANDED);
             }
         }
     }
-    onDOMContentLoaded(() => {
-        const button = document.querySelectorAll(SELECTOR_DATA_TOGGLE);
-        button.forEach(btn => {
-            btn.addEventListener('click', event => {
-                event.preventDefault();
-                const target = event.target;
-                const chatPane = target.closest(SELECTOR_DIRECT_CHAT);
-                if (chatPane) {
-                    const data = new DirectChat(chatPane);
-                    data.toggle();
-                }
-            });
-        });
+    document.addEventListener('click', event => {
+        const target = event.target;
+        if (!(target instanceof Element)) {
+            return;
+        }
+        const trigger = target.closest(SELECTOR_DATA_TOGGLE);
+        if (!trigger) {
+            return;
+        }
+        event.preventDefault();
+        const chatPane = trigger.closest(SELECTOR_DIRECT_CHAT);
+        if (chatPane) {
+            DirectChat.getOrCreateInstance(chatPane).toggle();
+        }
     });
 
-    const DATA_KEY$1 = 'lte.fullscreen';
-    const EVENT_KEY$1 = `.${DATA_KEY$1}`;
-    const EVENT_MAXIMIZED = `maximized${EVENT_KEY$1}`;
-    const EVENT_MINIMIZED = `minimized${EVENT_KEY$1}`;
+    const NAME$1 = 'fullscreen';
+    const EVENT_KEY$2 = `.lte.${NAME$1}`;
+    const EVENT_MAXIMIZED = `maximized${EVENT_KEY$2}`;
+    const EVENT_MINIMIZED = `minimized${EVENT_KEY$2}`;
     const SELECTOR_FULLSCREEN_TOGGLE = '[data-lte-toggle="fullscreen"]';
     const SELECTOR_MAXIMIZE_ICON = '[data-lte-icon="maximize"]';
     const SELECTOR_MINIMIZE_ICON = '[data-lte-icon="minimize"]';
@@ -491,15 +572,18 @@
         iconMinimize?.classList.toggle('d-none', !isFullScreen);
         const eventName = isFullScreen ? EVENT_MAXIMIZED : EVENT_MINIMIZED;
         document.querySelectorAll(SELECTOR_FULLSCREEN_TOGGLE).forEach(button => {
-            button.dispatchEvent(new Event(eventName));
+            dispatchCustomEvent(button, eventName);
         });
     }
-    class FullScreen {
-        _element;
-        _config;
-        constructor(element, config) {
-            this._element = element;
-            this._config = config;
+    class FullScreen extends BaseComponent {
+        static get NAME() {
+            return NAME$1;
+        }
+        static getInstance(element) {
+            return this._getInstance(element);
+        }
+        static getOrCreateInstance(element) {
+            return this.getInstance(element) ?? new this(element);
         }
         inFullScreen() {
             void document.documentElement.requestFullscreen().catch(() => {
@@ -521,26 +605,28 @@
             }
         }
     }
+    document.addEventListener('click', event => {
+        const target = event.target;
+        if (!(target instanceof Element)) {
+            return;
+        }
+        const button = target.closest(SELECTOR_FULLSCREEN_TOGGLE);
+        if (!button) {
+            return;
+        }
+        event.preventDefault();
+        FullScreen.getOrCreateInstance(button).toggleFullScreen();
+    });
     onDOMContentLoaded(() => {
         document.addEventListener('fullscreenchange', syncFullScreenState, { signal: getLifecycleSignal() });
-        const buttons = document.querySelectorAll(SELECTOR_FULLSCREEN_TOGGLE);
-        buttons.forEach(btn => {
-            btn.addEventListener('click', event => {
-                event.preventDefault();
-                const target = event.target;
-                const button = target.closest(SELECTOR_FULLSCREEN_TOGGLE);
-                if (button) {
-                    const data = new FullScreen(button, undefined);
-                    data.toggleFullScreen();
-                }
-            });
-        });
     });
 
-    const DATA_KEY = 'lte.push-menu';
-    const EVENT_KEY = `.${DATA_KEY}`;
-    const EVENT_OPEN = `open${EVENT_KEY}`;
-    const EVENT_COLLAPSE = `collapse${EVENT_KEY}`;
+    const NAME = 'push-menu';
+    const EVENT_KEY$1 = `.lte.${NAME}`;
+    const EVENT_OPEN = `open${EVENT_KEY$1}`;
+    const EVENT_COLLAPSE = `collapse${EVENT_KEY$1}`;
+    const EVENT_OPENED = `opened${EVENT_KEY$1}`;
+    const EVENT_COLLAPSED = `collapsed${EVENT_KEY$1}`;
     const CLASS_NAME_SIDEBAR_MINI = 'sidebar-mini';
     const CLASS_NAME_SIDEBAR_EXPAND = 'sidebar-expand';
     const CLASS_NAME_SIDEBAR_OVERLAY = 'sidebar-overlay';
@@ -555,11 +641,19 @@
         sidebarBreakpoint: 991.98,
         enablePersistence: false
     };
-    class PushMenu {
-        _element;
+    class PushMenu extends BaseComponent {
+        static get NAME() {
+            return NAME;
+        }
+        static getInstance(element) {
+            return this._getInstance(element);
+        }
+        static getOrCreateInstance(element, config = {}) {
+            return this.getInstance(element) ?? new this(element, config);
+        }
         _config;
-        constructor(element, config) {
-            this._element = element;
+        constructor(element, config = {}) {
+            super(element);
             this._config = { ...Defaults, ...config };
         }
         isCollapsed() {
@@ -575,16 +669,22 @@
             return globalThis.innerWidth <= this._config.sidebarBreakpoint;
         }
         expand() {
+            if (dispatchCustomEvent(this._element, EVENT_OPEN, { cancelable: true }).defaultPrevented) {
+                return;
+            }
             document.body.classList.remove(CLASS_NAME_SIDEBAR_COLLAPSE);
             if (this.isMobileSize()) {
                 document.body.classList.add(CLASS_NAME_SIDEBAR_OPEN);
             }
-            this._element.dispatchEvent(new Event(EVENT_OPEN));
+            dispatchCustomEvent(this._element, EVENT_OPENED);
         }
         collapse() {
+            if (dispatchCustomEvent(this._element, EVENT_COLLAPSE, { cancelable: true }).defaultPrevented) {
+                return;
+            }
             document.body.classList.remove(CLASS_NAME_SIDEBAR_OPEN);
             document.body.classList.add(CLASS_NAME_SIDEBAR_COLLAPSE);
-            this._element.dispatchEvent(new Event(EVENT_COLLAPSE));
+            dispatchCustomEvent(this._element, EVENT_COLLAPSED);
         }
         toggle() {
             const isCollapsed = this.isCollapsed();
@@ -679,8 +779,23 @@
             }
         }
     }
+    document.addEventListener('click', event => {
+        const target = event.target;
+        if (!(target instanceof Element)) {
+            return;
+        }
+        const button = target.closest(SELECTOR_SIDEBAR_TOGGLE);
+        if (!button) {
+            return;
+        }
+        event.preventDefault();
+        const sidebar = document.querySelector(SELECTOR_APP_SIDEBAR);
+        if (sidebar) {
+            PushMenu.getOrCreateInstance(sidebar).toggle();
+        }
+    });
     onDOMContentLoaded(() => {
-        const sidebar = document?.querySelector(SELECTOR_APP_SIDEBAR);
+        const sidebar = document.querySelector(SELECTOR_APP_SIDEBAR);
         if (!sidebar) {
             return;
         }
@@ -694,7 +809,7 @@
                 Defaults.enablePersistence :
                 enablePersistenceAttr === 'true'
         };
-        const pushMenu = new PushMenu(sidebar, config);
+        const pushMenu = PushMenu.getOrCreateInstance(sidebar, config);
         pushMenu.init();
         const breakpointQuery = globalThis.matchMedia(`(max-width: ${pushMenu._config.sidebarBreakpoint}px)`);
         breakpointQuery.addEventListener('change', () => {
@@ -725,20 +840,95 @@
             event.preventDefault();
             pushMenu.collapse();
         });
-        const fullBtn = document.querySelectorAll(SELECTOR_SIDEBAR_TOGGLE);
-        fullBtn.forEach(btn => {
-            btn.addEventListener('click', event => {
-                event.preventDefault();
-                let button = event.currentTarget;
-                if (button?.dataset.lteToggle !== 'sidebar') {
-                    button = button?.closest(SELECTOR_SIDEBAR_TOGGLE);
-                }
-                if (button) {
-                    event?.preventDefault();
-                    pushMenu.toggle();
-                }
+    });
+
+    const DATA_KEY = 'lte.color-mode';
+    const EVENT_KEY = `.${DATA_KEY}`;
+    const EVENT_CHANGED = `changed${EVENT_KEY}`;
+    const STORAGE_KEY = 'lte-theme';
+    const SELECTOR_TOGGLE = '[data-bs-theme-value]';
+    const SELECTOR_ICON = '[data-lte-theme-icon]';
+    class ColorMode {
+        getStoredTheme() {
+            try {
+                const stored = localStorage.getItem(STORAGE_KEY);
+                return stored && ['light', 'dark', 'auto'].includes(stored) ? stored : null;
+            }
+            catch {
+                return null;
+            }
+        }
+        getPreferredTheme() {
+            const stored = this.getStoredTheme();
+            if (stored) {
+                return stored;
+            }
+            return this._prefersDark() ? 'dark' : 'light';
+        }
+        resolveTheme(theme) {
+            if (theme === 'auto') {
+                return this._prefersDark() ? 'dark' : 'light';
+            }
+            return theme;
+        }
+        setTheme(theme) {
+            try {
+                localStorage.setItem(STORAGE_KEY, theme);
+            }
+            catch {
+            }
+            this._applyTheme(theme);
+            this._showActiveTheme(theme);
+            document.dispatchEvent(new CustomEvent(EVENT_CHANGED, {
+                detail: { theme, resolved: this.resolveTheme(theme) }
+            }));
+        }
+        _applyTheme(theme) {
+            const resolved = this.resolveTheme(theme);
+            document.documentElement.setAttribute('data-bs-theme', resolved);
+            document.documentElement.style.colorScheme = resolved;
+        }
+        _prefersDark() {
+            return globalThis.matchMedia('(prefers-color-scheme: dark)').matches;
+        }
+        _showActiveTheme(theme) {
+            document.querySelectorAll(SELECTOR_TOGGLE).forEach(toggle => {
+                const isActive = toggle.getAttribute('data-bs-theme-value') === theme;
+                toggle.classList.toggle('active', isActive);
+                toggle.setAttribute('aria-pressed', String(isActive));
+                toggle.querySelector('.bi-check-lg')?.classList.toggle('d-none', !isActive);
             });
-        });
+            document.querySelectorAll(SELECTOR_ICON).forEach(icon => {
+                icon.classList.toggle('d-none', icon.dataset.lteThemeIcon !== theme);
+            });
+        }
+        init() {
+            const theme = this.getPreferredTheme();
+            this._applyTheme(theme);
+            this._showActiveTheme(theme);
+        }
+    }
+    document.addEventListener('click', event => {
+        const target = event.target;
+        if (!(target instanceof Element)) {
+            return;
+        }
+        const toggle = target.closest(SELECTOR_TOGGLE);
+        const theme = toggle?.getAttribute('data-bs-theme-value');
+        if (theme) {
+            new ColorMode().setTheme(theme);
+        }
+    });
+    onDOMContentLoaded(() => {
+        const colorMode = new ColorMode();
+        colorMode.init();
+        globalThis.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            const stored = colorMode.getStoredTheme();
+            if (!stored || stored === 'auto') {
+                colorMode._applyTheme('auto');
+                colorMode._showActiveTheme(stored ?? 'auto');
+            }
+        }, { signal: getLifecycleSignal() });
     });
 
     class AccessibilityManager {
@@ -1178,6 +1368,7 @@
     });
 
     exports.CardWidget = CardWidget;
+    exports.ColorMode = ColorMode;
     exports.DirectChat = DirectChat;
     exports.FullScreen = FullScreen;
     exports.Layout = Layout;

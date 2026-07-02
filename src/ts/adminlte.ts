@@ -9,7 +9,7 @@ import ColorMode from './color-mode.js'
 import { initAccessibility } from './accessibility.js'
 
 /**
- * AdminLTE v4.0.4
+ * AdminLTE v4.1.0
  * Author: Colorlib
  * Website: AdminLTE.io <https://adminlte.io>
  * License: Open source - MIT <https://opensource.org/licenses/MIT>
