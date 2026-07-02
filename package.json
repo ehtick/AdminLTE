@@ -37,7 +37,7 @@
     "dev": "npm-run-all --parallel watch docs-serve",
     "build": "npm-run-all clean compile",
     "css": "npm-run-all css-compile css-prefix css-rtl css-minify",
-    "css-compile": "sass --style expanded --load-path=\"node_modules\" --source-map --embed-sources --no-error-css --quiet src/scss/:dist/css/",
+    "css-compile": "sass --style expanded --load-path=\"node_modules\" --source-map --embed-sources --no-error-css --quiet-deps --silence-deprecation=import src/scss/:dist/css/",
     "css-rtl": "cross-env NODE_ENV=RTL postcss --config src/config/postcss.config.mjs --dir \"dist/css\" --ext \".rtl.css\" \"dist/css/*.css\" \"!dist/css/*.min.css\" \"!dist/css/*.rtl.css\"",
     "css-lint": "stylelint \"src/scss/**/*.scss\" --cache --cache-location .cache/.stylelintcache --rd",
     "css-minify": "npm-run-all --aggregate-output --parallel css-minify-*",
@@ -61,10 +61,13 @@
     "flatten-build": "shx cp -r dist/html/* dist/ && shx rm -rf dist/html && shx rm -rf dist/.astro && shx mkdir -p dist/docs && shx mv dist/docs.html dist/docs/index.html",
     "assets": "node src/config/assets.config.mjs",
     "version": "node src/config/sync-version.mjs",
+    "test": "vitest run",
+    "test-watch": "vitest",
+    "test-a11y": "node tests/a11y.mjs",
     "lint": "npm-run-all --aggregate-output --continue-on-error --parallel js-lint css-lint docs-lint lockfile-lint",
     "clean": "rimraf dist",
     "compile": "npm-run-all css js assets copy-assets docs-compile docs-format flatten-build",
-    "production": "npm-run-all clean lint compile bundlewatch",
+    "production": "npm-run-all clean lint test compile bundlewatch",
     "watch": "concurrently \"npm:watch-*\"",
     "watch-css-main": "nodemon --watch src/scss/ --ext scss --exec \"npm-run-all css-lint css-compile css-prefix copy-assets\"",
     "watch-css-dist": "nodemon --watch dist/css/ --ext css --ignore \"dist/css/*.rtl.*\" --exec \"npm run css-rtl\"",
@@ -111,6 +114,7 @@
     "@typescript-eslint/parser": "^8.62.1",
     "astro": "^7.0.4",
     "autoprefixer": "^10.5.2",
+    "axe-core": "^4.12.1",
     "bootstrap": "^5.3.8",
     "bundlewatch": "^0.4.2",
     "clean-css-cli": "^5.6.3",
@@ -121,6 +125,7 @@
     "eslint-plugin-unicorn": "^69.0.0",
     "fs-extra": "^11.3.6",
     "globals": "^17.7.0",
+    "happy-dom": "^20.10.6",
     "lockfile-lint": "^5.0.0",
     "nodemon": "^3.1.14",
     "npm-run-all": "^4.1.5",
@@ -138,6 +143,7 @@
     "terser": "^5.48.0",
     "tslib": "^2.8.1",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.62.1"
+    "typescript-eslint": "^8.62.1",
+    "vitest": "^4.1.9"
   }
 }
